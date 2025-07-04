@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CARE+ Invader Game v10 (Evaporate + Explosion + Laser & Explosion Sound)</title>
+  <meta name="viewport" content="width=800,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    /* ...[same CSS as before]... */
+    body { margin: 0; background: #0a001a; color: #fff; font-family: 'Press Start 2P', monospace; overflow: hidden; user-select: none; }
+    #gameCanvas { display: block; margin: 0 auto; background: #080014; border: 4px solid #39ff14; box-shadow: 0 0 40px #39ff14aa; }
+    #ui { position: absolute; left: 0; top: 0; width: 100%; pointer-events: none; }
+    .scoreboard { position: absolute; top: 10px; right: 30px; text-align: right; font-size: 16px; color: #39ff14; text-shadow: 0 0 8px #39ff14bb; background: rgba(0,0,0,0.4); padding: 12px 20px; border-radius: 12px; border: 2px solid #39ff14; pointer-events: auto; }
+    .timerbox { position: absolute; top: 10px; left: 30px; font-size: 16px; color: #00fff7; background: rgba(0,0,0,0.4); padding: 12px 20px; border-radius: 12px; border: 2px solid #00fff7; text-shadow: 0 0 8px #00fff7bb; }
+    .centered { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 10; background: rgba(10,0,26,0.98); text-align: center; pointer-events: auto; color: #39ff14; }
+    .main-title { font-size: 40px; color: #39ff14; text-shadow: 0 0 20px #00fff7, 0 0 60px #39ff14; margin-bottom: 20px; }
+    .neon-btn { font-family: 'Press Start 2P', monospace; font-size: 20px; padding: 16px 48px; margin-top: 32px; background: #090a28; border: 3px solid #39ff14; color: #39ff14; border-radius: 12px; box-shadow: 0 0 20px #39ff14bb; cursor: pointer; transition: background .2s, color .2s, box-shadow .2s; }
+    .neon-btn:hover { background: #39ff14; color: #090a28; box-shadow: 0 0 40px #39ff14; }
+    .instructions { font-size: 17px; color: #00fff7; margin-bottom: 20px; text-shadow: 0 0 8px #00fff7bb; background: rgba(0,0,0,0.55); padding: 18px 24px; border-radius: 12px; border: 2px solid #00fff7; display: inline-block; text-align: left; max-width: 600px; line-height: 1.7; }
+    .instructions span { color: #39ff14; }
+    @media (max-width: 600px) {
+      .main-title { font-size: 24px; }
+      .scoreboard { font-size: 11px; padding: 7px 10px; }
+      .timerbox { font-size: 11px; padding: 7px 10px; }
+      .instructions { font-size: 12px; padding: 11px 8px; }
+      .neon-btn { font-size: 13px; padding: 8px 24px;}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <div id="ui">
+    <div id="timerbox" class="timerbox" style="display:none"></div>
+    <div id="scoreboard" class="scoreboard" style="display:none"></div>
+    <div id="startScreen" class="centered">
+      <div class="main-title">CARE+ SPACE INVADERS v10 (Evaporate + Explosion + Laser & Explosion Sound)</div>
+      <div class="instructions">
+        <b>You're the captain of a battle cruiser!</b><br><br>
+        For the next <span style="color:#00fff7">30 seconds</span>, questions will fly towards your ship.<br>
+        <ul style="text-align:left;margin:8px 0 8px 24px;">
+          <li><b>Let through</b> any of the 7 official <span style="color:#39ff14">CARE+</span> questions.</li>
+          <li><b>Shoot</b> the decoy questions with your <span style="color:#ff0040">lazer</span>!</li>
+        </ul>
+        <b>Controls:</b><br>
+        <ul style="text-align:left;margin:8px 0 8px 24px;">
+          <li>Move left & right: <b>Arrow keys</b></li>
+          <li>Fire lazer: <b>Spacebar</b></li>
+        </ul>
+        When you're ready, press <b>PLAY</b>!
+      </div>
+      <button class="neon-btn" onclick="startGame()">PLAY</button>
+    </div>
+    <div id="endScreen" class="centered" style="display:none">
+      <div class="main-title">GAME OVER</div>
+      <div id="endStats"></div>
+      <button class="neon-btn" onclick="playAgain()">PLAY AGAIN</button>
+    </div>
+  </div>
+  <script>
+    // --- CONFIG & GAME STATE (same as before) ---
+    const CARE_QUESTIONS = [
+      "What is your total monthly income?",
+      "What are your regular monthly outgoings?",
+      "Do you have any outstanding debts/arrears?",
+      "Are there any changes to your income expected soon?",
+      "Do you receive any government support/benefits?",
+      "How many people live in your household?",
+      "Are there any health conditions or disabilities to consider?"
+    ];
+    const DECOYS = [
+      "What's your favorite TV show?",
+      "Do you like pizza?",
+      "What is your pet's name?",
+      "Do you have vacation plans?",
+      "What's your favorite sport?",
+      "Where do you want to travel?",
+      "What music do you like?",
+      "Do you enjoy reading books?",
+      "What's your favorite color?",
+      "Do you like to cook?",
+      "How is the weather today?",
+      "What's your dream car?",
+      "Do you play video games?",
+      "What hobbies do you have?",
+      "What's your lucky number?",
+      "What's your favorite movie?",
+      "Do you like to dance?",
+      "Do you have a garden?",
+      "What's your favorite animal?",
+      "What did you eat for breakfast?"
+    ];
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width, H = canvas.height;
+    let player, bullets, stars;
+    let leftHeld = false, rightHeld = false, canShoot = true;
+    let volts = 0, streak = 0, highestStreak = 0;
+    let gameOver = false, gameStarted = false, frame = 0;
+    let scoreDiv = document.getElementById('scoreboard');
+    let timerDiv = document.getElementById('timerbox');
+    let questionDeck = [];
+    let currentEnemy = null;
+    let nextEnemyDelay = 0;
+    let enemySpeed = 2.7;
+    let timer = 30.0;
+    let evaporateEffect = null;
+
+    // --- Laser AND Explosion Sounds (Web Audio API) ---
+    let audioCtx = null;
+    function playLaserSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = audioCtx;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = "sawtooth";
+        o.frequency.value = 760;
+        g.gain.value = 0.13;
+        o.connect(g).connect(ctx.destination);
+        o.start();
+        o.frequency.linearRampToValueAtTime(440, ctx.currentTime + 0.05);
+        g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.13);
+        o.stop(ctx.currentTime + 0.13);
+      } catch(e) {}
+    }
+    function playExplosionSound() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = audioCtx;
+        const duration = 0.25;
+        // Noise burst
+        const buffer = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+        let data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-7 * i / data.length); // quick decay
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.22;
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+        noise.connect(gain).connect(ctx.destination);
+        noise.start();
+        noise.stop(ctx.currentTime + duration);
+        // Optionally, lowpass filter for a "boom"
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 750 + Math.random()*200;
+        gain.connect(filter).connect(ctx.destination);
+      } catch(e) {}
+    }
+
+    // --- UTILITIES, OBJECTS, GAME LOOP (same as before, only changes in bullet collision section) ---
+    function rand(a, b) { return Math.random() * (b - a) + a; }
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+    function resetPlayer() { player = { x: W/2, y: H-60, w: 60, h: 28, vx: 0, speed: 7 }; }
+    function createBullets() { bullets = []; }
+    function createStars() {
+      stars = [];
+      for(let i=0; i<80; i++) {
+        stars.push({ x: rand(0, W), y: rand(0, H), r: rand(0.8, 2), speed: rand(0.6, 2.5) });
+      }
+    }
+    function buildQuestionDeck() {
+      let decoys = shuffle([...DECOYS]);
+      let cares = shuffle([...CARE_QUESTIONS]);
+      let set = [];
+      let total = 36;
+      let decoyCount = Math.floor(total * 0.7);
+      let careCount = total - decoyCount;
+      for(let i=0; i<careCount; i++) set.push({ text: cares[i % cares.length], isCare: true });
+      for(let i=0; i<decoyCount; i++) set.push({ text: decoys[i % decoys.length], isCare: false });
+      return shuffle(set);
+    }
+    function spawnNextEnemy() {
+      if (questionDeck.length === 0) { currentEnemy = null; return; }
+      let e = questionDeck.shift();
+      let xmargin = 170;
+      let randX = rand(xmargin, W-xmargin);
+      currentEnemy = { x: randX, y: -50, w: 370, h: 38, vy: enemySpeed, text: e.text, isCare: e.isCare, destroyed: false, active: true };
+    }
+    function gameLoop(ts) {
+      if (!gameStarted) return;
+      ctx.fillStyle = "#080014"; ctx.fillRect(0,0,W,H);
+      for(let s of stars) {
+        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 2*Math.PI);
+        ctx.fillStyle = "#fff"; ctx.globalAlpha = 0.8; ctx.fill();
+        ctx.globalAlpha = 1; s.y += s.speed;
+        if(s.y > H) { s.x = rand(0, W); s.y = 0; s.r = rand(0.8,2); s.speed = rand(0.6,2.5); }
+      }
+      if(leftHeld) player.x -= player.speed;
+      if(rightHeld) player.x += player.speed;
+      player.x = Math.max(0, Math.min(W-player.w, player.x));
+      drawShip(player.x, player.y);
+      for(let b of bullets) { b.y -= b.vy; }
+      bullets = bullets.filter(b => b.y > -10);
+      ctx.save(); ctx.shadowColor = "#00fff7"; ctx.shadowBlur = 12;
+      for(let b of bullets) { ctx.fillStyle = "#00fff7"; ctx.fillRect(b.x-3, b.y-18, 6, 18); }
+      ctx.restore();
+
+      // Draw evaporate/explosion effect (if exists)
+      if (evaporateEffect) {
+        let ex = evaporateEffect;
+        let explosionFrames = 15;
+        if (ex.frames < explosionFrames) {
+          let prog = ex.frames / explosionFrames;
+          let len = 20 + 26 * prog;
+          let lines = 11;
+          for (let i = 0; i < lines; i++) {
+            let angle = (Math.PI * 2) * (i / lines) + prog;
+            ctx.save();
+            ctx.globalAlpha = 1 - prog;
+            ctx.strokeStyle = ex.isCare ? "#39ff14" : "#ff0040";
+            ctx.lineWidth = 2 + 1.5 * (1-prog);
+            ctx.beginPath();
+            ctx.moveTo(ex.x, ex.y);
+            ctx.lineTo(ex.x + Math.cos(angle) * len, ex.y + Math.sin(angle) * len);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+        ctx.save();
+        ctx.globalAlpha = ex.alpha;
+        ctx.font = "15px 'Press Start 2P', monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = ex.isCare ? "#39ff14" : "#ff0040";
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = ex.isCare ? "#39ff14" : "#ff0040";
+        ctx.fillText(ex.text, ex.x, ex.y);
+        ctx.restore();
+        ex.alpha -= 0.07;
+        ex.frames++;
+        if (ex.alpha <= 0) evaporateEffect = null;
+      }
+
+      // Enemy question
+      if(currentEnemy && currentEnemy.active && !currentEnemy.destroyed) {
+        currentEnemy.y += currentEnemy.vy;
+        ctx.save();
+        ctx.strokeStyle = currentEnemy.isCare ? "#39ff14" : "#ff0040";
+        ctx.lineWidth = 3;
+        ctx.shadowColor = currentEnemy.isCare ? "#39ff14" : "#ff0040";
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.rect(currentEnemy.x-currentEnemy.w/2, currentEnemy.y, currentEnemy.w, currentEnemy.h);
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.font = "15px 'Press Start 2P', monospace";
+        ctx.fillStyle = currentEnemy.isCare ? "#39ff14" : "#ff0040";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = currentEnemy.isCare ? "#39ff14" : "#ff0040";
+        ctx.shadowBlur = 8;
+        ctx.fillText(currentEnemy.text, currentEnemy.x, currentEnemy.y+currentEnemy.h/2);
+        ctx.restore();
+        for(let b of bullets) {
+          if(collides(b, currentEnemy)) {
+            // --- Explosion+Evaporate effect and sound ---
+            evaporateEffect = {
+              x: currentEnemy.x,
+              y: currentEnemy.y+currentEnemy.h/2,
+              w: currentEnemy.w,
+              h: currentEnemy.h,
+              text: currentEnemy.text,
+              isCare: currentEnemy.isCare,
+              alpha: 1,
+              frames: 0
+            };
+            playExplosionSound();
+            currentEnemy.destroyed = true;
+            currentEnemy.active = false;
+            b.y = -100;
+            if(!currentEnemy.isCare) {
+              volts += 2;
+              streak++;
+              highestStreak = Math.max(highestStreak, streak);
+            } else {
+              volts -= 1;
+              streak = 0;
+            }
+            nextEnemyDelay = 35;
+          }
+        }
+        if(currentEnemy.y + currentEnemy.h >= H-40 && currentEnemy.active) {
+          currentEnemy.active = false;
+          if(!currentEnemy.isCare) { volts -= 1; streak = 0; }
+          nextEnemyDelay = 35;
+        }
+      } else if(nextEnemyDelay > 0) {
+        nextEnemyDelay--;
+        if(nextEnemyDelay === 0 && timer > 0 && questionDeck.length > 0) spawnNextEnemy();
+      } else if((!currentEnemy || (currentEnemy && !currentEnemy.active)) && timer > 0 && questionDeck.length > 0) {
+        spawnNextEnemy();
+      }
+      showScoreboard();
+      showTimer();
+      if (timer > 0) {
+        timer -= 1/60;
+        if(timer <= 0) { timer = 0; endGame(); return; }
+      }
+      frame++;
+      requestAnimationFrame(gameLoop);
+    }
+    function collides(b, e) {
+      return b.x > e.x-e.w/2 && b.x < e.x+e.w/2 && b.y < e.y+e.h && b.y > e.y;
+    }
+    function drawShip(x, y) {
+      ctx.save();
+      ctx.translate(x+player.w/2, y+player.h/2);
+      ctx.scale(1.1, 1.1);
+      ctx.beginPath();
+      ctx.moveTo(-18, 14); ctx.lineTo(0, -20); ctx.lineTo(18, 14); ctx.lineTo(0, 7); ctx.closePath();
+      ctx.fillStyle = "#39ff14"; ctx.shadowColor = "#39ff14"; ctx.shadowBlur = 12; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-10, 14); ctx.lineTo(0, 4); ctx.lineTo(10, 14); ctx.closePath();
+      ctx.fillStyle = "#00fff7"; ctx.shadowColor = "#00fff7"; ctx.shadowBlur = 6; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-20, 12); ctx.lineTo(-30, 22); ctx.lineTo(-12, 18); ctx.closePath();
+      ctx.fillStyle = "#ff00d5"; ctx.shadowColor = "#ff00d5"; ctx.shadowBlur = 8; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(20, 12); ctx.lineTo(30, 22); ctx.lineTo(12, 18); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    function showScoreboard() {
+      scoreDiv.innerHTML =
+        `Volts: <b>${volts}</b><br>Streak: <b>${streak}</b><br>Highest: <b>${highestStreak}</b>`;
+      scoreDiv.style.display = 'block';
+    }
+    function showTimer() {
+      timerDiv.innerHTML = `Time: <b>${Math.ceil(timer)}</b> sec`;
+      timerDiv.style.display = 'block';
+    }
+    function hideScoreboard() { scoreDiv.style.display = 'none'; }
+    function hideTimer() { timerDiv.style.display = 'none'; }
+    function startGame() {
+      document.getElementById('startScreen').style.display = 'none';
+      document.getElementById('endScreen').style.display = 'none';
+      hideScoreboard(); hideTimer();
+      W = canvas.width = window.innerWidth < 900 ? window.innerWidth-2 : 800;
+      H = canvas.height = window.innerHeight < 660 ? window.innerHeight-2 : 600;
+      volts = 0; streak = 0; highestStreak = 0;
+      gameOver = false; gameStarted = true; frame = 0;
+      resetPlayer(); createBullets(); createStars();
+      questionDeck = buildQuestionDeck();
+      currentEnemy = null;
+      nextEnemyDelay = 20;
+      evaporateEffect = null;
+      timer = 30.0;
+      showScoreboard(); showTimer();
+      requestAnimationFrame(gameLoop);
+    }
+    function endGame() {
+      gameOver = true; gameStarted = false; hideScoreboard(); hideTimer();
+      let finalScore = Math.max(0, volts) * Math.max(1, highestStreak);
+      document.getElementById('endStats').innerHTML =
+        `<div style="font-size:20px;color:#00fff7;">Final Score: <b>${finalScore}</b></div>
+        <div style="margin-top:6px;">Volts: <b>${volts}</b></div>
+        <div>Longest Streak: <b>${highestStreak}</b></div>`;
+      document.getElementById('endScreen').style.display = '';
+    }
+    function playAgain() { startGame(); }
+    window.addEventListener('keydown', function(e){
+      if(!gameStarted) return;
+      if(e.repeat) return;
+      if(e.key === "ArrowLeft") leftHeld = true;
+      if(e.key === "ArrowRight") rightHeld = true;
+      if(e.key === " " || e.code === "Space") {
+        if(canShoot) {
+          bullets.push({ x: player.x+player.w/2, y: player.y-10, vy: 13 });
+          canShoot = false;
+          playLaserSound();
+          setTimeout(()=>canShoot=true, 200);
+        }
+      }
+    });
+    window.addEventListener('keyup', function(e){
+      if(e.key === "ArrowLeft") leftHeld = false;
+      if(e.key === "ArrowRight") rightHeld = false;
+    });
+    window.addEventListener('resize', ()=>{
+      W = canvas.width = window.innerWidth < 900 ? window.innerWidth-2 : 800;
+      H = canvas.height = window.innerHeight < 660 ? window.innerHeight-2 : 600;
+      if(gameStarted) createStars();
+    });
+    hideScoreboard(); hideTimer();
+  </script>
+</body>
+</html>
