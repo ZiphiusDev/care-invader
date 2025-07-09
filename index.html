@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>CARE+ Invader Game v10 (Evaporate + Explosion + Laser & Explosion Sound)</title>
-  <meta name="viewport" content="width=800,initial-scale=1">
+  <meta name="viewport" content="width=800,initial-scale=1,maximum-scale=1,user-scalable=no">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     /* ...[same CSS as before]... */
-    body { margin: 0; background: #0a001a; color: #fff; font-family: 'Press Start 2P', monospace; overflow: hidden; user-select: none; }
-    #gameCanvas { display: block; margin: 0 auto; background: #080014; border: 4px solid #39ff14; box-shadow: 0 0 40px #39ff14aa; }
-    #ui { position: absolute; left: 0; top: 0; width: 100%; pointer-events: none; }
+    body { margin: 0; background: #0a001a; color: #fff; font-family: 'Press Start 2P', monospace; overflow: hidden; user-select: none; width: 800px; height: 600px; }
+    #gameCanvas { display: block; margin: 0 auto; background: #080014; border: 4px solid #39ff14; box-shadow: 0 0 40px #39ff14aa; width: 800px; height: 600px; }
+    #ui { position: absolute; left: 0; top: 0; width: 800px; height: 600px; pointer-events: none; }
     .scoreboard { position: absolute; top: 10px; right: 30px; text-align: right; font-size: 16px; color: #39ff14; text-shadow: 0 0 8px #39ff14bb; background: rgba(0,0,0,0.4); padding: 12px 20px; border-radius: 12px; border: 2px solid #39ff14; pointer-events: auto; }
     .timerbox { position: absolute; top: 10px; left: 30px; font-size: 16px; color: #00fff7; background: rgba(0,0,0,0.4); padding: 12px 20px; border-radius: 12px; border: 2px solid #00fff7; text-shadow: 0 0 8px #00fff7bb; }
     .centered { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 10; background: rgba(10,0,26,0.98); text-align: center; pointer-events: auto; color: #39ff14; }
@@ -18,13 +18,6 @@
     .neon-btn:hover { background: #39ff14; color: #090a28; box-shadow: 0 0 40px #39ff14; }
     .instructions { font-size: 17px; color: #00fff7; margin-bottom: 20px; text-shadow: 0 0 8px #00fff7bb; background: rgba(0,0,0,0.55); padding: 18px 24px; border-radius: 12px; border: 2px solid #00fff7; display: inline-block; text-align: left; max-width: 600px; line-height: 1.7; }
     .instructions span { color: #39ff14; }
-    @media (max-width: 600px) {
-      .main-title { font-size: 24px; }
-      .scoreboard { font-size: 11px; padding: 7px 10px; }
-      .timerbox { font-size: 11px; padding: 7px 10px; }
-      .instructions { font-size: 12px; padding: 11px 8px; }
-      .neon-btn { font-size: 13px; padding: 8px 24px;}
-    }
   </style>
 </head>
 <body>
@@ -91,7 +84,7 @@
     ];
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    let W = canvas.width, H = canvas.height;
+    const W = 800, H = 600;
     let player, bullets, stars;
     let leftHeld = false, rightHeld = false, canShoot = true;
     let volts = 0, streak = 0, highestStreak = 0;
@@ -341,8 +334,6 @@
       document.getElementById('startScreen').style.display = 'none';
       document.getElementById('endScreen').style.display = 'none';
       hideScoreboard(); hideTimer();
-      W = canvas.width = window.innerWidth < 900 ? window.innerWidth-2 : 800;
-      H = canvas.height = window.innerHeight < 660 ? window.innerHeight-2 : 600;
       volts = 0; streak = 0; highestStreak = 0;
       gameOver = false; gameStarted = true; frame = 0;
       resetPlayer(); createBullets(); createStars();
@@ -381,11 +372,6 @@
     window.addEventListener('keyup', function(e){
       if(e.key === "ArrowLeft") leftHeld = false;
       if(e.key === "ArrowRight") rightHeld = false;
-    });
-    window.addEventListener('resize', ()=>{
-      W = canvas.width = window.innerWidth < 900 ? window.innerWidth-2 : 800;
-      H = canvas.height = window.innerHeight < 660 ? window.innerHeight-2 : 600;
-      if(gameStarted) createStars();
     });
     hideScoreboard(); hideTimer();
   </script>
